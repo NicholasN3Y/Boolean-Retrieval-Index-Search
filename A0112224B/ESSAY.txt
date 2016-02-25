@@ -1,0 +1,61 @@
+Replace this file with the answers to the essay questions here.
+----------------------------------------------------------------------
+
+1. In the homework assignment, we are using character-based ngrams,
+i.e., the gram units are characters. Do you expect token-based ngram
+models to perform better?
+
+Token-based ngram models will most liely perform better in terms of 
+distinguishing between languages. This is so as character-based ngrams enables
+us to determine the likeliness of it belonging to a language based 
+on sequences of characters, whereas token-based would allow us to capture the 
+vocabulary and as the n gets higher, include certain usage of the language, whereby a word 
+is often likely to be followed by another certain word. Such is the case for Malaysian and Indonesian,
+where while the spelling of many words may be the same, the sequence of the words when used may be different 
+depending on the language.
+
+However, the variation of language also plays a factor. For example, if we were to
+build language model for American-English and British-English, then, character-based 
+ngram model would fare better as there is differences in spelling between the two
+variations of the language (ie: color vs colour, neighbor vs neighbour, defense vs defence)
+
+
+2. What do you think will happen if we provided more data for each
+category for you to build the language models? What if we only
+provided more data for Indonesian?
+
+I am assuming that the same algorithm is to be used.
+If more data is provided for each category, it still depends on whether the data given introduces new vocabulary
+of the language or add to the count already present. If it's the latter, then the probability will be strengthened,
+allowing for a more solid conclusion to be drawn regarding the language of the queries. However, if the new data tends
+towards introducing new and rare occurrence of the language, a redistribution of probability mass will occur, which will
+lower the probabiities of all the ngrams.
+
+If data is only provided for Indonesian, then we are able to get a more definite conclusion to say that a sentence is in
+indonesian as we have more data and occurances of the ngrams resulting in a higher probability, whereby it is substantially 
+greater than the ones computed for other languages. 
+
+3. What do you think will happen if you strip out punctuations and/or
+numbers? What about converting upper case characters to lower case?
+
+if punctuations and numbers are stripped out, the 4-char nram space will decrease, allowing each occurance of ngrams
+to hold heavier weightage in terms of probability. Therefore, the probability computed will be more accurate as 
+punctuations and numbers are not limited to a certain language.
+
+Whereby if upper case characters are converted into lowercase, the counts of ngrams of the lowercases will increase, thus
+increasing the probability mass of that ngram. eg.
+(Hari) - 2/45689  
+(hari) - 5/45689  ->  (hari) - 7/45689
+Hence, when during evaluation of queries, the computed probability will be higher. Yielding more accurate representations.  
+
+
+4. We use 4-gram models in this homework assignment. What do you think
+will happen if we varied the ngram size, such as using unigrams,
+bigrams and trigrams?
+
+using unigrams will not be able to yield any accurate results, as we are evaluating only on occurances of characters, 
+but in this case, all are latin alphabets, hence the probabilities would be too close to evaluate.
+bigrams and trigrams would also not work as syllables cannot be differentiated between indonesian and malaysian, whereby
+both share the same syllables domain. 
+Instead, using ngrams models larger than 4 would yield better results, as the ngrams extracted from the sentences can contain
+much more data in terms of word formation that will be able to differentiate the languages better. 
