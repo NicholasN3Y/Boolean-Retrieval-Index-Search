@@ -40,6 +40,10 @@ def build_Index(directory) :
 						index_dict[term].append((docname, ))
 				else:
 					index_dict[term.lower()].append((docname, ))
+					
+		#add list of documents into dictionary
+		index_dict['LIST_OF_DOC'].append((docname, ))
+	
 			
 	#add skip pointers
 	for term, postings in index_dict.items():
@@ -53,7 +57,9 @@ def build_Index(directory) :
 			elif (i != post_length-1):
 				postings[i] = (postings[i][0], post_length - 1)
 		
-		#print term, ":", repr(postings)
+	
+	
+	
 	return index_dict
 
 def pickle_Data(index_dict, dictionaryz, postingz):
