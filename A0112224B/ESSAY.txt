@@ -1,61 +1,47 @@
-Replace this file with the answers to the essay questions here.
-----------------------------------------------------------------------
+1.You will observe that a large portion of the terms in the dictionary are numbers. 
+  However, we normally do not use numbers as query terms to search. Do you think it is a 
+  good idea to remove these number entries from the dictionary and the postings lists? 
+  Can you propose methods to normalize these numbers? How many percentage of reduction in 
+  disk storage do you observe after removing/normalizing these numbers?
 
-1. In the homework assignment, we are using character-based ngrams,
-i.e., the gram units are characters. Do you expect token-based ngram
-models to perform better?
+  group of absulte numbers such as event dates and financial reporting are important entries 
+  with regards to a document. Other instances are of less importance. Hence, removing these number
+  entries without a trace from the dictionary and postings list is not beneficial. I would suggest however,
+  to normalize the numbers, perhaps by grouping ranges of numbers into a single postings list based on semantics.
+  
+  Without removing these numbers, the dictionary file produced is 1,345,383 bytes.
+  Removing them yields a dictionary file of 655,750 bytes, which is significantly smaller. This is expected due to the
+  infinite possible representation of numbers. Removing them would hence reduce the amount of the dictionary file.
 
-Token-based ngram models will most liely perform better in terms of 
-distinguishing between languages. This is so as character-based ngrams enables
-us to determine the likeliness of it belonging to a language based 
-on sequences of characters, whereas token-based would allow us to capture the 
-vocabulary and as the n gets higher, include certain usage of the language, whereby a word 
-is often likely to be followed by another certain word. Such is the case for Malaysian and Indonesian,
-where while the spelling of many words may be the same, the sequence of the words when used may be different 
-depending on the language.
-
-However, the variation of language also plays a factor. For example, if we were to
-build language model for American-English and British-English, then, character-based 
-ngram model would fare better as there is differences in spelling between the two
-variations of the language (ie: color vs colour, neighbor vs neighbour, defense vs defence)
+  As for the postings file, the ratio reduce in size to 10,076,160 to 7,168,000 is not that great as the posting list size for each number representation 
+  is small. 
 
 
-2. What do you think will happen if we provided more data for each
-category for you to build the language models? What if we only
-provided more data for Indonesian?
+2.What do you think will happen if we remove stop words from the dictionary and postings file? 
+  How does it affect the searching phase?
 
-I am assuming that the same algorithm is to be used.
-If more data is provided for each category, it still depends on whether the data given introduces new vocabulary
-of the language or add to the count already present. If it's the latter, then the probability will be strengthened,
-allowing for a more solid conclusion to be drawn regarding the language of the queries. However, if the new data tends
-towards introducing new and rare occurrence of the language, a redistribution of probability mass will occur, which will
-lower the probabiities of all the ngrams.
+  stops words will greatly reduce the size of the postings file as opposed to the dictionary file.
+  The vocabulary size of stop words are small relative to the total vocabulary, 
+  where as the occurance of stop words in various documents are guaranteed to be of high probabiliy, 
+  which is reflective of the high document count. 
 
-If data is only provided for Indonesian, then we are able to get a more definite conclusion to say that a sentence is in
-indonesian as we have more data and occurances of the ngrams resulting in a higher probability, whereby it is substantially 
-greater than the ones computed for other languages. 
-
-3. What do you think will happen if you strip out punctuations and/or
-numbers? What about converting upper case characters to lower case?
-
-if punctuations and numbers are stripped out, the 4-char nram space will decrease, allowing each occurance of ngrams
-to hold heavier weightage in terms of probability. Therefore, the probability computed will be more accurate as 
-punctuations and numbers are not limited to a certain language.
-
-Whereby if upper case characters are converted into lowercase, the counts of ngrams of the lowercases will increase, thus
-increasing the probability mass of that ngram. eg.
-(Hari) - 2/45689  
-(hari) - 5/45689  ->  (hari) - 7/45689
-Hence, when during evaluation of queries, the computed probability will be higher. Yielding more accurate representations.  
+  searching would be be faster as we deal with a smaller vocabulary size and a relatively smalled postings file.
+  queries can be better trimmed to obtain smarter results. as stop words which hold no meaning are excluded.
 
 
-4. We use 4-gram models in this homework assignment. What do you think
-will happen if we varied the ngram size, such as using unigrams,
-bigrams and trigrams?
+3.The NLTK tokenizer may not correctly tokenize all terms. What do you observe from the resulting terms 
+  produced by sent_tokenize() and word_tokenize()? Can you propose rules to further refine these results?
+	
+  Sentences are seperated based on punctuations such as '?'  '!' and '.' 
+  Words ending with 's are converted seperate the 's from the word
+  beginning quotes(") placed on the begining of the word is not seperated from the word, whereas endquote 
+  are seperated from the word.
+  Hyphenated words are not seperated. 
 
-using unigrams will not be able to yield any accurate results, as we are evaluating only on occurances of characters, 
-but in this case, all are latin alphabets, hence the probabilities would be too close to evaluate.
-bigrams and trigrams would also not work as syllables cannot be differentiated between indonesian and malaysian, whereby
-both share the same syllables domain. 
-Instead, using ngrams models larger than 4 would yield better results, as the ngrams extracted from the sentences can contain
-much more data in terms of word formation that will be able to differentiate the languages better. 
+  to tokenize better, I suggest to seperate hyphenated words, which can lead to a better and more accurate
+  response of the query. As if stayed hyphenated, it would be considered as a seperate term. Searching words that might be
+  a contituent of hyphened words, would not include it the result.
+
+
+
+

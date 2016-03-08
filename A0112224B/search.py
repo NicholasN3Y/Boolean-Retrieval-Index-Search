@@ -4,6 +4,7 @@ import sys
 import getopt
 import os
 import cPickle as pickle
+import math
 
 ''' Code below is credited to https://msoulier.wordpress.com/2009/08/01/dijkstras-shunting-yard-algorithm-in-python/ '''
 class QueryParser(object):
@@ -15,7 +16,7 @@ class QueryParser(object):
 		self.postfix = []
 	
 	def tokenize(self, input):
-		self.tokens = input.split(" ");
+		self.tokens = input.split(" ")
 		tokened = []
 		for token in self.tokens:
 			r_paren = False
@@ -80,7 +81,8 @@ class QueryParser(object):
 				elif token == ")":
 					self.right_paren()
 				else:
-					self.postfix.append(token)
+                                        if (token != ""):
+                                                self.postfix.append(token)
 		while len(self.stack) > 0:
 			operator = self.stack.pop()
 			if operator == "(" or operator == ")":
@@ -96,15 +98,34 @@ def loadDictionary(filename):
 	dictFile.close()
 	return term_count_pos
 
+def tidyup(line):
+        k = list()
+        print "line is type", type(line)
+        stemmer = nltk.PorterStemmer()
+        line = nltk.word_tokenize(line)
+        for term in line:
+                if (term != "NOT" and term != "AND" and term != "OR"):
+                        term = stemmer.stem(term.lower())
+                k.append(str(term))
+        return " ".join(k)
+
 def evaluateQueries(dictionary, posting_filename, queries_filename, output_filename):
 	parser = QueryParser()
 	outputfile = open(output_filename, 'w')
 	postingsfile = open(posting_filename, 'rb')
 	with open(queries_filename, 'r') as queries:
 		for line in queries:
-			print line
-			postfix = parser.parse(line)
-			evalquery(postfix, dictionary, postingsfile, outputfile)
+                        #print "before processed", line
+                        k = tidyup(line)
+                        #print "after processed",k
+			postfix = parser.parse(k)
+			print "postfix", postfix
+			try:
+                                evalquery(postfix, dictionary, postingsfile, outputfile)
+                        except: #catch all exceptions
+                                e = sys.exc_info()
+                                print "exception thrown", e;
+                                write_result(list("Error querying"), outputfile)
 	outputfile.close()
 	postingsfile.close()
 			
@@ -113,69 +134,74 @@ def evalquery(query, dictionary, postingsfile, outputfile):
 		opstack = []
 		waitToEvaluate = True
 		while len(query) >= 0:
-			while(term = query.pop()):
-				if term == "NOT": 
-					opstack.append(term)
-				elif term == "OR" or term == "AND":
-					WaitToEvaluate = True
+			term = query.pop()
+			if term == "NOT":
+				opstack.append(term)
+			elif term == "OR" or term == "AND":
+				waitToEvaluate = True
+				opstack.append(term)
+			else:
+				#is a term 
+				if waitToEvaluate:
+					waitToEvaluate = False
 					opstack.append(term)
 				else:
-					#is a term 
-					if waitToEvaluate:
-						waitToEvaluate = False
-						opstack.append(term)
-					else:
-						list1 = term
-						list2 = -1
-						Notlist1 = False
-						Notlist2 = False
-						term = opstack.pop()
-						#pop until we get a AND or "OR"
-						while (term != "AND" and  term != "OR"):
-							if term == "NOT":
-								if list2 == -1:
-									Notlist1 = True
-								else:
-									Notlist2 = True
+                                        #print opstack
+					list1 = term
+					list2 = -1
+					Notlist1 = False
+					Notlist2 = False
+					term = opstack.pop()
+					#pop until we get a AND or "OR"
+					while (term != "AND" and  term != "OR"):
+						if term == "NOT":
+							if list2 == -1:
+								Notlist1 = True
 							else:
-								list2 = term
-							term = opstack.pop()
+								Notlist2 = True
+						else:
+							list2 = term
+						term = opstack.pop()
 					
-						assert(term=="AND" or term =="OR")
-						assert(list1 != -1) 
-						assert(list2 != -1)
-						if (term == "AND"):
-							intermediate_list = evalAnd(list1, Notlist1, list2, Notlist2, dictionary, postingsfile)
-						elif(term == "OR")
-							intermediate_list = evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile)
-						query.append(intermediate_list)
-						while (len(opstack) > 0):
-							query.append(opstack.pop())
-						assert(len(opstack) == 0)
-						evalquery(query, dictionary, postingsfile, outputfile)
+					assert(term=="AND" or term =="OR")
+					assert(list1 != -1) 
+					assert(list2 != -1)
+					if (term == "AND"):
+						intermediate_list = evalAnd(list1, Notlist1, list2, Notlist2, dictionary, postingsfile)
+					elif(term == "OR"):
+						intermediate_list = evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile)
+					query.append(intermediate_list)
+					while (len(opstack) > 0):
+						query.append(opstack.pop())
+					assert(len(opstack) == 0)
+					return evalquery(query, dictionary, postingsfile, outputfile)
 	else:
 		if(len(query) == 2):
 			assert(query[1] == "NOT")
 			res = evalNot(query[0])
 		else:
 			res = query[0]
+			if (type(res) is str):
+                                res = dictionary.get(res, list())
+			print res
 		write_result(res, outputfile)
+		return 
 		
 def evalAnd(list1, Notlist1, list2, Notlist2, dictionary, postingsfile):
+                print "evaluating AND clause"
 		'''get posting lists'''
 		if type(list1) is str:
 			list1 = dictionary.get(list1, "None")
 			if (list1 == "None"):
-			 	list1 == list()
+			 	list1 = list()
 			else:	
 				list1 = getDataFromPostings(list1[1], postingsfile)
 		if type(list2) is str:
-			list2 = dictionary.get(list1, "None")
+			list2 = dictionary.get(list2, "None")
 			if (list2 == "None"):
-			 	list2 == list()
+			 	list2 = list()
 			else:	
-				list2 = getDataFromPostings(list1[1], postingsfile)
-		
+				list2 = getDataFromPostings(list2[1], postingsfile)
 		res_list = list()
 		#case Not A and Not B -> Not(A or B)
 		if (Notlist1 == True and Notlist2 == True):
@@ -195,51 +221,73 @@ def evalAnd(list1, Notlist1, list2, Notlist2, dictionary, postingsfile):
 					del temp
 			ptr_list1 = 0;
 			ptr_list2 = 0;
-			while ptr_list1 < len(ptr_list1):
+			while ptr_list1 < len(list1) and ptr_list2 < len(list2):
 				if (list1[ptr_list1][0] == list2[ptr_list2][0]):
 					# case A and B
 					if (Notlist2 == False):
-						res_list.append(ptr_list1)
-					ptr_list1++
-					ptr_list2++
+						res_list.append(list1[ptr_list1])
+					ptr_list1+=1
+					ptr_list2+=1
 				elif (list1[ptr_list1][0] < list2[ptr_list2][0]):
+                                        #has skip pointer
+                                        #print "ptr 1", ptr_list1
+                                        #print "prt 2", ptr_list2
 					if (len(list1[ptr_list1]) == 2):
 						init = ptr_list1
-						while (list1[list1[ptr_list1][1]] <= list[ptr_list2]):
+						while (list1[list1[ptr_list1][1]] <= list2[ptr_list2]):
 							ptr_list1 = list1[ptr_list1][1]
+							if (ptr_list1 == len(list1) - 1):
+                                                                break
 						# case A and not B
-						if (Notlist2 == True):
-							res_list.append(list1[init:ptr_list1])
+						if (ptr_list1 == init):
+							ptr_list1 += 1        
+                                                if (Notlist2 ==True):
+                                                        res_list.extend(list1[init:ptr_list1])
+                                                
 					else:
 						#case A and not B
 						if (Notlist2 == True):
 							res_list.append(list1[ptr_list1])
-							ptr_list1++
+						ptr_list1+=1
 				elif(list1[ptr_list1][0] > list2[ptr_list2][0]):	
 					if (len(list2[ptr_list2]) == 2):
 						init = ptr_list2
-						while (list2[list2[ptr_list2][1]] <= list[ptr_list1]):
+						while (list2[list2[ptr_list2][1]] <= list1[ptr_list1]):
 							ptr_list2 = list2[ptr_list2][1]
+							if (ptr_list2 == len(list2)-1):
+                                                                break
+                                                if (ptr_list2 == init):
+							ptr_list2+=1
 					else:
-						ptr_list2++
-				
+						ptr_list2+=1
+				#print "list1", list1
+				#print "list2", list2
+				#print "ptr_list1", ptr_list1
+				#print "ptr_list2", ptr_list2
+			if(Notlist2 == True and ptr_list1<len(list1)):
+				assert(ptr_list2 >= len(list2))
+				#A but Not B since B has depleted
+				res_list.extend(list1[ptr_list1:len(list1)])
 			return skipify(res_list)
 					
 def evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile):
+                print "evaluating OR clause"
 		'''get posting lists'''
 		if type(list1) is str:
 			list1 = dictionary.get(list1, "None")
 			if (list1 == "None"):
-			 	list1 == list()
+			 	list1 = list()
 			else:	
 				list1 = getDataFromPostings(list1[1], postingsfile)
 		if type(list2) is str:
-			list2 = dictionary.get(list1, "None")
+			list2 = dictionary.get(list2, "None")
 			if (list2 == "None"):
-			 	list2 == list()
+			 	list2 = list()
 			else:	
-				list2 = getDataFromPostings(list1[1], postingsfile)
-
+				list2 = getDataFromPostings(list2[1], postingsfile)
+		
+		#print list1
+		#print list2
 		#case A or B
 		if (Notlist1 == False and Notlist2 == False):
 			if (len(list1) == 0):
@@ -260,31 +308,39 @@ def evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile):
 			while (ptr_list2 < len(list2) and ptr_list1 < len(list1)): 
 				if (list1[ptr_list1][0] == list2[ptr_list2][0]):
 					res_list.append(list1[ptr_list1])
-					ptr_list1++
-					ptr_list2++
+					ptr_list1+=1
+					ptr_list2+=1
 				elif(list1[ptr_list1][0] < list2[ptr_list2][0]):
 					if (len(list1[ptr_list1]) == 2):
 						init = ptr_list1
-						while (list1[list1[ptr_list1][1]] <= list[ptr_list2]):
+						while (list1[list1[ptr_list1][1]] <= list2[ptr_list2]):
 							ptr_list1 = list1[ptr_list1][1]
-						res_list.append(list1[init:ptr_list1])
+							if (ptr_list1 == len(list1) - 1):
+                                                                break;
+						if (ptr_list1==init):
+							ptr_list1+=1
+						res_list.extend(list1[init:ptr_list1])
 					else:
 						res_list.append(list1[ptr_list1])
-						ptr_list1++
+						ptr_list1+=1
 				elif(list1[ptr_list1][0] > list2[ptr_list2][0]):	
 					if (len(list2[ptr_list2]) == 2):
 						init = ptr_list2
-						while (list2[list2[ptr_list2][1]] <= list[ptr_list1]):
+						while (list2[list2[ptr_list2][1]] <= list1[ptr_list1]):
 							ptr_list2 = list2[ptr_list2][1]
-						res_list.append(list2[init:ptr_list2])
+                                                        if (ptr_list2 == len(list2) - 1):
+                                                                break
+						if ptr_list2 == init:
+							ptr_list2+=1
+						res_list.extend(list2[init:ptr_list2])
 					else:
 						res_list.append(list2[ptr_list2])
-						ptr_list2++
+						ptr_list2+=1
 			#append remainder to the list
 			if (ptr_list1 < len(list1)):
-				res_list.append(list1[ptr_list1:len(list1)])
-			elif (ptr_list2 < len(list2):
-				res_list.append(list2[ptr_list2:len(list2)])
+				res_list.extend(list1[ptr_list1:len(list1)])
+			elif (ptr_list2 < len(list2)):
+				res_list.extend(list2[ptr_list2:len(list2)])
 			return skipify(res_list)
 			
 		#case not A or not B -> not (A and B)
@@ -296,48 +352,53 @@ def evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile):
 		elif (Notlist1 == True and Notlist2 == False):
 			list1 = evalNot(list1, dictionary, postingsfile)
 			Notlist1 == False
-			return evalOr(list1, Notlist1, list2, Notlist2, dictionary, postingsfile)
+			print "change to true true"
+			return evalOr(list1,False, list2, False, dictionary, postingsfile)
 			
-		#case not b or a  (interchange a and b)
-		elif (Notlist1 != False and Notlist2 != True):
+		#case a or not b  (interchange a and b)
+		elif (Notlist1 == False and Notlist2 == True):
 			return evalOr(list2, Notlist2, list1, Notlist1, dictionary, postingsfile)		
 
 
 
 
-def evalNot(list, dictionary, postingsfile):
+def evalNot(lists, dictionary, postingsfile):
 	doclist = getDataFromPostings(dictionary['LIST_OF_DOC'][1], postingsfile)
-	if type(list) is str:
-		list = dictionary.get(list, "None")
-		if (list == "None"):
+	if type(lists) is str:
+		lists = dictionary.get(list, "None")
+		if (lists == "None"):
 			#hence the term is not present in any of the documents, so we take all documents
 			return doclist
 		else:	
-			list = getDataFromPostings(list[1], postingsfile)
+			lists = getDataFromPostings(lists[1], postingsfile)
 
 	#negate list from doclist to get NOT list
 	ptr_doclist = 0
 	ptr_list = 0
 	res_list = list()
 	
-	while (ptr_list < len(list)):
+	while (ptr_list < len(lists)):
 		
-		if (list[ptr_list][0] > doclist[ptr_doclist][0]):
+		if (lists[ptr_list][0] > doclist[ptr_doclist][0]):
 			
 			#if has skip ptr
 			if (len(doclist[ptr_doclist]) == 2):
 				init = ptr_doclist
-				while (doclist[doclist[ptr_doclist][1]] <= list[ptr_list]):
+				while (doclist[doclist[ptr_doclist][1]] <= lists[ptr_list]):
 					 ptr_doclist = doclist[ptr_doclist][1]
-				res_list.append(doclist[init:ptr_doclist])
+					 if (ptr_doclist == len(doclist) - 1):
+                                                 break;
+				if ptr_doclist == init:
+					ptr_doclist += 1
+				res_list.extend(doclist[init:ptr_doclist])
 			else:
 				res_list.append(doclist[ptr_doclist])
-				ptr_doclist++
+				ptr_doclist+=1
 
-		elif(list[ptr_list][0] == doclist[ptr_doclist][0]):
+		elif(lists[ptr_list][0] == doclist[ptr_doclist][0]):
 			#advance pointers by 1
-			ptr_doclist++
-			ptr_list++			
+			ptr_doclist+=1
+			ptr_list+=1	
 		
 		else:
 			assert (False), "Should be impossible to enter such state" 		
@@ -348,20 +409,24 @@ def evalNot(list, dictionary, postingsfile):
 	return skipify(res_list) 
 	
 def skipify(alist):
+        anlist = list()
 	#clear rubbish skip data due to merge 
-	for item in alist:
-		assert(type(item) is tuple), "it is not a tuple!"
-		if len(item) == 2:
-			item = (item[0], )
-			
-	post_length = len(alist)
+	for i in range(0, len(alist)-1, 1):
+		#assert(type(alist[i]) is tuple), "it is not a tuple!"
+		anlist.append((alist[i][0], ))		
+	#print anlist		
+	post_length = len(anlist)
 	val = int(math.floor(math.sqrt(post_length)))	
 	#add skip pointer
-	for i in range (0, post_length, val):
-		if (i + val < post_length):
-			postings[i] = (postings[i][0], i+val)
-		elif (i != post_length-1):
-			postings[i] = (postings[i][0], post_length - 1)
+	if val > 1:
+                for i in range (0, post_length, val):
+                        if (i + val < post_length):
+                                anlist[i] = (anlist[i][0], i+val)
+                        elif (i != post_length-1):
+                                anlist[i] = (anlist[i][0], post_length - 1)
+                                break
+        #print anlist        
+        return anlist
 
 def getDataFromPostings(position, postingsfile):
 	postingsfile.seek(position, 0)
@@ -370,8 +435,7 @@ def getDataFromPostings(position, postingsfile):
 def write_result(resultlist, outputfile):
 	resultstring = ""
 	for item in resultlist:
-		resultstring.append(item[0])
-		resultstring.append(" ");
+		resultstring+=(str(item[0])+" ")
 	resultstring = resultstring[0:len(resultstring)-1]
 	outputfile.write(resultstring+"\n")
 		 				
